@@ -2,7 +2,10 @@
 
 Android app that puts a short breathing pause between you and the apps that steal your time.
 
-When you open a watched app (Instagram, YouTube, X, …), a full-screen inhale/exhale overlay appears for a few seconds. Finish the breath to continue, or tap **Leave** to go Home.
+When you open a watched app (Instagram, YouTube, X, …), a full-screen breathing overlay appears and stays until you choose:
+
+- **Quit to something productive** → goes Home  
+- **Continue — burn your time** → unlocks after a short breath, then lets the app through
 
 ## Requirements
 
@@ -28,10 +31,10 @@ Or open the project in Android Studio and run the `app` configuration.
 
 ## How it works
 
-- An `AccessibilityService` listens for foreground window changes
-- If the package is in your restricted list, a `TYPE_ACCESSIBILITY_OVERLAY` shows the breath UI
-- After the delay, the overlay dismisses and a short cooldown prevents immediate re-prompts
-- **Leave** performs Home so you can walk away
+- An `AccessibilityService` listens for foreground **app switches** (`TYPE_WINDOW_STATE_CHANGED` only)
+- If the package is newly opened and restricted, a `TYPE_ACCESSIBILITY_OVERLAY` shows the breath UI
+- After you continue, that app is allowed for the rest of the session until you leave it
+- **Quit** performs Home so you can walk away
 
 The service only observes which app is in the foreground. It does not read message content or passwords.
 

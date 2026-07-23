@@ -272,7 +272,7 @@ private fun DelayCard(delaySeconds: Int, onDelayChange: (Int) -> Unit) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Breath duration", style = MaterialTheme.typography.titleMedium, color = SageDeep)
+            Text("Pause before continue", style = MaterialTheme.typography.titleMedium, color = SageDeep)
             Text(
                 text = "${delaySeconds}s",
                 style = MaterialTheme.typography.titleLarge,
@@ -292,7 +292,7 @@ private fun DelayCard(delaySeconds: Int, onDelayChange: (Int) -> Unit) {
             ),
         )
         Text(
-            text = "A few slow seconds to notice the urge before you open the app.",
+            text = "How long to breathe before “continue” unlocks. You can always quit sooner.",
             style = MaterialTheme.typography.bodyMedium,
             color = SageMid,
         )

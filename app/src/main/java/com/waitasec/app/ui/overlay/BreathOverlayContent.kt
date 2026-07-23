@@ -7,6 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,12 +23,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,34 +45,37 @@ import com.waitasec.app.ui.theme.SageDeep
 import com.waitasec.app.ui.theme.SageMid
 import com.waitasec.app.ui.theme.SagePale
 import com.waitasec.app.ui.theme.SageSoft
+import com.waitasec.app.ui.theme.SoftCoral
 import kotlinx.coroutines.delay
-import kotlin.math.ceil
 
 @Composable
 fun BreathOverlayContent(
     delaySeconds: Int,
     appLabel: String,
-    onComplete: () -> Unit,
-    onLeave: () -> Unit,
+    onContinue: () -> Unit,
+    onQuit: () -> Unit,
 ) {
-    var remainingMs by remember(delaySeconds) { mutableIntStateOf(delaySeconds * 1000) }
+    // Encourage a short breath before "continue" unlocks; quit is always available.
+    var continueUnlocked by remember { mutableStateOf(delaySeconds <= 0) }
 
     LaunchedEffect(delaySeconds) {
-        remainingMs = delaySeconds * 1000
-        while (remainingMs > 0) {
-            delay(50)
-            remainingMs = (remainingMs - 50).coerceAtLeast(0)
+        continueUnlocked = delaySeconds <= 0
+        if (delaySeconds > 0) {
+            delay(delaySeconds * 1000L)
+            continueUnlocked = true
         }
-        onComplete()
     }
 
-    // One full inhale+exhale cycle ~ 4s (2s each)
+    // Deep breath: ~5s inhale, ~5s exhale (10s full cycle)
+    val inhaleExhaleMs = 5_000
+    val fullBreathMs = inhaleExhaleMs * 2
+
     val breath = rememberInfiniteTransition(label = "breath")
     val scale by breath.animateFloat(
-        initialValue = 0.72f,
-        targetValue = 1.12f,
+        initialValue = 0.68f,
+        targetValue = 1.18f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2000, easing = EaseInOutCubic),
+            animation = tween(durationMillis = inhaleExhaleMs, easing = EaseInOutCubic),
             repeatMode = RepeatMode.Reverse,
         ),
         label = "breathScale",
@@ -80,13 +84,12 @@ fun BreathOverlayContent(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 4000, easing = LinearEasing),
+            animation = tween(durationMillis = fullBreathMs, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
         label = "phase",
     )
     val cue = if (phaseProgress < 0.5f) "Inhale" else "Exhale"
-    val remainingSec = ceil(remainingMs / 1000.0).toInt().coerceAtLeast(0)
 
     Box(
         modifier = Modifier
@@ -115,7 +118,7 @@ fun BreathOverlayContent(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Before opening $appLabel",
+                text = "You were about to open $appLabel",
                 style = MaterialTheme.typography.bodyLarge.copy(fontFamily = BodyFontFamily),
                 color = SagePale,
                 textAlign = TextAlign.Center,
@@ -136,23 +139,16 @@ fun BreathOverlayContent(
                         .scale(scale * 0.92f)
                         .background(Cream.copy(alpha = 0.92f), CircleShape),
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = cue,
-                        style = MaterialTheme.typography.headlineMedium.copy(fontFamily = DisplayFontFamily),
-                        color = SageDeep,
-                    )
-                    Text(
-                        text = "${remainingSec}s",
-                        style = MaterialTheme.typography.titleLarge.copy(fontFamily = BodyFontFamily),
-                        color = SageMid,
-                    )
-                }
+                Text(
+                    text = cue,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontFamily = DisplayFontFamily),
+                    color = SageDeep,
+                )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
             Text(
-                text = "Breathe with the circle.\nIs this how you want to spend your time?",
+                text = "Breathe with the circle.\nWhat do you actually want right now?",
                 style = MaterialTheme.typography.bodyLarge.copy(fontFamily = BodyFontFamily),
                 color = Cream.copy(alpha = 0.9f),
                 textAlign = TextAlign.Center,
@@ -160,29 +156,50 @@ fun BreathOverlayContent(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            TextButton(onClick = onLeave) {
-                Text(
-                    text = "Leave",
-                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = BodyFontFamily),
-                    color = Cream,
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
             Button(
-                onClick = { /* wait must complete */ },
-                enabled = false,
+                onClick = onQuit,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp),
+                    .height(52.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = ButtonDefaults.buttonColors(
-                    disabledContainerColor = Cream.copy(alpha = 0.2f),
-                    disabledContentColor = Cream.copy(alpha = 0.7f),
+                    containerColor = Cream,
+                    contentColor = SageDeep,
                 ),
             ) {
                 Text(
-                    text = if (remainingSec > 0) "Opening in ${remainingSec}s" else "Opening…",
+                    text = "Quit to something productive",
                     style = MaterialTheme.typography.labelLarge.copy(fontFamily = BodyFontFamily),
+                    textAlign = TextAlign.Center,
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedButton(
+                onClick = onContinue,
+                enabled = continueUnlocked,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = SoftCoral,
+                    disabledContentColor = Cream.copy(alpha = 0.45f),
+                ),
+                border = BorderStroke(
+                    width = 1.5.dp,
+                    color = if (continueUnlocked) SoftCoral.copy(alpha = 0.85f) else Cream.copy(alpha = 0.3f),
+                ),
+            ) {
+                Text(
+                    text = if (continueUnlocked) {
+                        "Continue — burn your time"
+                    } else {
+                        "Breathe first…"
+                    },
+                    style = MaterialTheme.typography.labelLarge.copy(fontFamily = BodyFontFamily),
+                    textAlign = TextAlign.Center,
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))

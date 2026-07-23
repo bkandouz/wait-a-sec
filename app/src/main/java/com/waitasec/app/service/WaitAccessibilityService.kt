@@ -12,42 +12,50 @@ class WaitAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private lateinit var overlayController: BreathOverlayController
 
-    /** After a successful wait, ignore re-triggers for this package briefly. */
-    private val cooldownUntilMs = mutableMapOf<String, Long>()
-    private var lastHandledPackage: String? = null
-    private var lastHandledAtMs: Long = 0L
+    /** Package currently considered in the foreground (last non-noise window). */
+    private var foregroundPackage: String? = null
+
+    /**
+     * After the user chooses to continue, keep this package allowed until they
+     * leave it for a different app (so in-app activity changes don't re-prompt).
+     */
+    private var allowedSessionPackage: String? = null
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         overlayController = BreathOverlayController(
             context = this,
-            onLeaveHome = {
+            onQuitHome = {
+                allowedSessionPackage = null
                 performGlobalAction(GLOBAL_ACTION_HOME)
-                // Cooldown so returning to launcher doesn't immediately re-fire
-                lastHandledPackage = null
             },
         )
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED &&
-            event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
-        ) {
-            return
-        }
+        // Only window state changes indicate an app / activity switch.
+        // Content changes fire constantly while scrolling and must be ignored.
+        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
 
         val packageName = event.packageName?.toString() ?: return
-        if (event.isOwnOrSystemNoise(ownPackage = this.packageName)) return
+        if (isIgnorablePackage(packageName)) return
         if (!::overlayController.isInitialized) return
         if (overlayController.isShowing) return
 
-        val now = System.currentTimeMillis()
-        // Debounce rapid duplicate events for same package
-        if (packageName == lastHandledPackage && now - lastHandledAtMs < 800L) return
+        // Same package still in front — not a new launch (e.g. internal activity).
+        if (packageName == foregroundPackage) return
 
-        val cooldown = cooldownUntilMs[packageName] ?: 0L
-        if (now < cooldown) return
+        val previous = foregroundPackage
+        foregroundPackage = packageName
+
+        // Left a restricted session for another app → clear the allow pass.
+        if (allowedSessionPackage != null &&
+            packageName != allowedSessionPackage &&
+            !isIgnorablePackage(packageName)
+        ) {
+            allowedSessionPackage = null
+        }
 
         val settings = try {
             (application as WaitASecApp).repository.currentSettingsBlocking()
@@ -58,17 +66,20 @@ class WaitAccessibilityService : AccessibilityService() {
         if (!settings.protectionEnabled) return
         if (packageName !in settings.restrictedPackages) return
 
-        lastHandledPackage = packageName
-        lastHandledAtMs = now
+        // Already chose to continue for this app this session.
+        if (packageName == allowedSessionPackage) return
+
+        // Only gate when arriving from a different package (true launch / switch-in).
+        if (previous == packageName) return
 
         mainHandler.post {
             if (overlayController.isShowing) return@post
+            if (foregroundPackage != packageName) return@post
             overlayController.show(
                 packageName = packageName,
                 delaySeconds = settings.delaySeconds,
-                onComplete = {
-                    // Allow the restricted app to stay in foreground without re-prompting
-                    cooldownUntilMs[packageName] = System.currentTimeMillis() + COOLDOWN_MS
+                onContinue = {
+                    allowedSessionPackage = packageName
                 },
             )
         }
@@ -86,7 +97,17 @@ class WaitAccessibilityService : AccessibilityService() {
         super.onDestroy()
     }
 
-    companion object {
-        private const val COOLDOWN_MS = 45_000L
+    private fun isIgnorablePackage(packageName: String): Boolean {
+        if (packageName == this.packageName) return true
+        if (packageName == "com.android.systemui") return true
+        if (packageName == "com.android.settings") return true
+        if (packageName.startsWith("com.android.launcher")) return true
+        if (packageName.contains("launcher", ignoreCase = true)) return true
+        if (packageName == "com.google.android.apps.nexuslauncher") return true
+        if (packageName == "com.google.android.permissioncontroller") return true
+        if (packageName == "com.android.permissioncontroller") return true
+        if (packageName == "com.google.android.packageinstaller") return true
+        if (packageName == "com.android.packageinstaller") return true
+        return false
     }
 }

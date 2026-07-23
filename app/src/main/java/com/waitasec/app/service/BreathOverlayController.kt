@@ -6,7 +6,6 @@ import android.graphics.PixelFormat
 import android.os.Build
 import android.view.Gravity
 import android.view.WindowManager
-import android.view.accessibility.AccessibilityEvent
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.Lifecycle
@@ -22,7 +21,7 @@ import com.waitasec.app.ui.theme.WaitASecTheme
 
 class BreathOverlayController(
     private val context: Context,
-    private val onLeaveHome: () -> Unit,
+    private val onQuitHome: () -> Unit,
 ) {
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private var overlayView: ComposeView? = null
@@ -31,7 +30,11 @@ class BreathOverlayController(
 
     val isShowing: Boolean get() = overlayView != null
 
-    fun show(packageName: String, delaySeconds: Int, onComplete: () -> Unit) {
+    fun show(
+        packageName: String,
+        delaySeconds: Int,
+        onContinue: () -> Unit,
+    ) {
         if (overlayView != null) return
         showingForPackage = packageName
 
@@ -48,13 +51,13 @@ class BreathOverlayController(
                     BreathOverlayContent(
                         delaySeconds = delaySeconds,
                         appLabel = label,
-                        onComplete = {
+                        onContinue = {
                             dismiss()
-                            onComplete()
+                            onContinue()
                         },
-                        onLeave = {
+                        onQuit = {
                             dismiss()
-                            onLeaveHome()
+                            onQuitHome()
                         },
                     )
                 }
@@ -66,8 +69,7 @@ class BreathOverlayController(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
             WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -139,14 +141,4 @@ private class OverlayLifecycleHost : LifecycleOwner, SavedStateRegistryOwner {
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_STOP)
         lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
     }
-}
-
-/** Packages / classes that should never trigger the breath gate. */
-fun AccessibilityEvent.isOwnOrSystemNoise(ownPackage: String): Boolean {
-    val pkg = packageName?.toString() ?: return true
-    if (pkg == ownPackage) return true
-    if (pkg == "com.android.systemui") return true
-    if (pkg.startsWith("com.android.launcher")) return true
-    if (pkg.contains("launcher", ignoreCase = true)) return true
-    return false
 }

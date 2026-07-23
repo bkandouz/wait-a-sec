@@ -128,7 +128,7 @@ fun OnboardingScreen(
             ) {
                 StepLine("1", "Pick the apps that tend to pull you in.")
                 StepLine("2", "When you open one, a calm breath screen appears.")
-                StepLine("3", "Finish the pause to continue — or leave if you don’t need it.")
+                StepLine("3", "Quit to something productive — or consciously continue.")
             }
 
             Spacer(modifier = Modifier.weight(1f))
