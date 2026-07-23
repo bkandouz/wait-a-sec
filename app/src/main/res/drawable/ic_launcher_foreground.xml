@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Soft breath circle -->
+    <path
+        android:fillColor="#7EB8A8"
+        android:pathData="M54,54m-28,0a28,28 0,1 1,56 0a28,28 0,1 1,-56 0" />
+    <path
+        android:fillColor="#C8E6DC"
+        android:pathData="M54,54m-16,0a16,16 0,1 1,32 0a16,16 0,1 1,-32 0" />
+    <!-- Pause marks -->
+    <path
+        android:fillColor="#1A3A3A"
+        android:pathData="M46,44h4v20h-4zM58,44h4v20h-4z" />
+</vector>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Wait a sec…</string>
+    <string name="accessibility_service_label">Wait a sec…</string>
+    <string name="accessibility_service_description">Wait a sec… watches for apps you marked as time-wasters and shows a short breathing pause before you can use them. It only observes which app is in the foreground — it does not read your messages or passwords.</string>
+</resources>
